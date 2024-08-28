@@ -1,0 +1,16 @@
+GET http://localhost:4011/api/price_plans
+
+###
+POST http://localhost:4011/api/phonebill
+Content-Type: application/json
+
+{
+    "price_plan": "sms 101",
+    "actions": "call, sms, call"
+}
+
+# {
+#     "name": "sms_kick_100",
+#     "call_cost": 2.65,
+#     "sms_cost": 0.45
+# }

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Bill API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            /* background-color: #36aeccaf; */
+            background-image: url('https://img.freepik.com/premium-photo/email-sms-marketing-concept-hand-hold-white-smartphone-with-digital-hologram-email-sms-sign-city-dark-blurred-background-sending-email-bulk-mail_486333-3831.jpg'); background-attachment: fixed; background-size: cover; background-repeat: no-repeat;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #b1a7a7;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .output {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9e9e9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .output p {
+            margin: 0;
+            color: #333;
+        }
+
+        .price-plans {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .price-plans ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .price-plans li {
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .price-plans li:last-child {
+            border-bottom: none;
+        }
+    </style>
+    <script src="//unpkg.com/alpinejs" defer></script>
+</head>
+<body>
+    <div class="container" x-data="phoneBillApp()">
+        <h1>Phone Bill API</h1>
+
+        <h2>Available Price Plans</h2>
+        <div class="price-plans" x-show="pricePlans.length">
+            <ul>
+                <template x-for="plan in pricePlans" :key="plan.id">
+                    <li><strong x-text="plan.plan_name"></strong>: Call Cost - R<span x-text="plan.call_price"></span>, SMS Cost - R<span x-text="plan.sms_price"></span></li>
+                </template>
+            </ul>
+        </div>
+
+        <h2>Create Price Plan</h2>
+        <form @submit.prevent="createPricePlan">
+            <label for="name">Price Plan Name:</label>
+            <input type="text" id="name" x-model="pricePlan.name" required>
+
+            <label for="call_cost">Call Cost:</label>
+            <input type="number" id="call_cost" x-model="pricePlan.call_cost" step="0.01" required>
+
+            <label for="sms_cost">SMS Cost:</label>
+            <input type="number" id="sms_cost" x-model="pricePlan.sms_cost" step="0.01" required>
+
+            <button type="submit">Create Price Plan</button>
+        </form>
+
+        <h2>Update Price Plan</h2>
+        <form @submit.prevent="updatePricePlan">
+            <label for="update_name">Price Plan Name:</label>
+            <input type="text" id="update_name" x-model="pricePlan.name" required>
+
+            <label for="update_call_cost">Call Cost:</label>
+            <input type="number" id="update_call_cost" x-model="pricePlan.call_cost" step="0.01" required>
+
+            <label for="update_sms_cost">SMS Cost:</label>
+            <input type="number" id="update_sms_cost" x-model="pricePlan.sms_cost" step="0.01" required>
+
+            <button type="submit">Update Price Plan</button>
+        </form>
+
+        <h2>Delete Price Plan</h2>
+        <form @submit.prevent="deletePricePlan">
+            <label for="delete_id">Price Plan ID:</label>
+            <input type="number" id="delete_id" x-model="deleteId" required>
+
+            <button type="submit">Delete Price Plan</button>
+        </form>
+
+        <h2>Calculate Phone Bill</h2>
+        <form @submit.prevent="calculatePhoneBill">
+            <label for="price_plan">Select Price Plan:</label>
+            <select id="price_plan" x-model="selectedPlan" required>
+                <option value="" disabled selected>Select a plan</option>
+                <template x-for="plan in pricePlans" :key="plan.id">
+                    <option :value="plan.plan_name" x-text="plan.plan_name"></option>
+                </template>
+            </select>
+
+            <label for="actions">Actions (comma-separated):</label>
+            <input type="text" id="actions" x-model="actions" placeholder="e.g., call, sms, call" required>
+
+            <button type="submit">Calculate Bill</button>
+        </form>
+
+        <div class="output" x-show="total !== null">
+            <h2>Total Bill</h2>
+            <p>Total: <strong x-text="`R${total}`"></strong></p>
+        </div>
+    </div>
+
+    <script>
+        function phoneBillApp() {
+            return {
+                pricePlan: { name: '', call_cost: 0, sms_cost: 0 },
+                deleteId: null,
+                pricePlans: [],
+                selectedPlan: '',
+                actions: '',
+                total: null,
+
+                async fetchPricePlans() {
+                    const response = await fetch('/api/price_plans');
+                    this.pricePlans = await response.json();
+                },
+
+                async createPricePlan() {
+                    await fetch('/api/price_plan/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.pricePlan)
+                    });
+                    this.pricePlan = { name: '', call_cost: 0, sms_cost: 0 };
+                    this.fetchPricePlans();
+                },
+
+                async updatePricePlan() {
+                    await fetch('/api/price_plan/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.pricePlan)
+                    });
+                    this.fetchPricePlans();
+                },
+
+                async deletePricePlan() {
+                    await fetch('/api/price_plan/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: this.deleteId })
+                    });
+                    this.deleteId = null;
+                    this.fetchPricePlans();
+                },
+
+                async calculatePhoneBill() {
+                    const response = await fetch('/api/phonebill', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ price_plan: this.selectedPlan, actions: this.actions })
+                    });
+                    const data = await response.json();
+                    this.total = data.total;
+                },
+
+                async init() {
+                    await this.fetchPricePlans();
+                }
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = phoneBillApp();
+            app.init();
+        });
+    </script>
+</body>
+</html>
